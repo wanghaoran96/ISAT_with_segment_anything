@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Author  : LG
+import re
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from ISAT.ui.MainWindow import Ui_MainWindow
@@ -19,7 +20,8 @@ from ISAT.widgets.auto_segment_dialog import AutoSegmentDialog
 from ISAT.widgets.model_manager_dialog import ModelManagerDialog
 from ISAT.widgets.annos_validator_dialog import AnnosValidatorDialog
 from ISAT.widgets.canvas import AnnotationScene, AnnotationView
-from ISAT.configs import STATUSMode, MAPMode, load_config, save_config, CONFIG_FILE, SOFTWARE_CONFIG_FILE, CHECKPOINT_PATH, ISAT_ROOT, SHORTCUT_FILE
+from ISAT.configs import STATUSMode, MAPMode, load_config, save_config, CONFIG_FILE, SOFTWARE_CONFIG_FILE, \
+    CHECKPOINT_PATH, ISAT_ROOT, SHORTCUT_FILE
 from ISAT.annotation import Object, Annotation
 from ISAT.widgets.polygon import Polygon, PromptPoint
 from ISAT.configs import STATUSMode, CLICKMode, DRAWMode, CONTOURMode
@@ -90,18 +92,23 @@ class SegAnyThread(QThread):
                 input_image = self.mainwindow.segany.predictor_with_point_prompt._transforms(image)
                 input_image = input_image[None, ...].to(self.mainwindow.segany.predictor_with_point_prompt.device)
                 backbone_out = self.mainwindow.segany.predictor_with_point_prompt.model.forward_image(input_image)
-                _, vision_feats, _, _ = self.mainwindow.segany.predictor_with_point_prompt.model._prepare_backbone_features(backbone_out)
+                _, vision_feats, _, _ = self.mainwindow.segany.predictor_with_point_prompt.model._prepare_backbone_features(
+                    backbone_out)
                 if self.mainwindow.segany.predictor_with_point_prompt.model.directly_add_no_mem_embed:
-                    vision_feats[-1] = vision_feats[-1] + self.mainwindow.segany.predictor_with_point_prompt.model.no_mem_embed
+                    vision_feats[-1] = vision_feats[
+                                           -1] + self.mainwindow.segany.predictor_with_point_prompt.model.no_mem_embed
                 feats = [
-                    feat.permute(1, 2, 0).view(1, -1, *feat_size)
-                    for feat, feat_size in zip(vision_feats[::-1], self.mainwindow.segany.predictor_with_point_prompt._bb_feat_sizes[::-1])
-                ][::-1]
+                            feat.permute(1, 2, 0).view(1, -1, *feat_size)
+                            for feat, feat_size in zip(vision_feats[::-1],
+                                                       self.mainwindow.segany.predictor_with_point_prompt._bb_feat_sizes[
+                                                       ::-1])
+                        ][::-1]
                 _features = {"image_embed": feats[-1], "high_res_feats": tuple(feats[:-1])}
                 return _features, _orig_hw, _orig_hw
             else:
                 input_image = self.mainwindow.segany.predictor_with_point_prompt.transform.apply_image(image)
-                input_image_torch = torch.as_tensor(input_image, device=self.mainwindow.segany.predictor_with_point_prompt.device)
+                input_image_torch = torch.as_tensor(input_image,
+                                                    device=self.mainwindow.segany.predictor_with_point_prompt.device)
                 input_image_torch = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
 
                 original_size = image.shape[:2]
@@ -133,12 +140,12 @@ class SegAnyThread(QThread):
 
             for index in indexs:
                 if index not in self.results_dict:
-                    self.tag.emit(index, 2, '')    # 进行
+                    self.tag.emit(index, 2, '')  # 进行
 
                     image_path = os.path.join(self.mainwindow.image_root, self.mainwindow.files_list[index])
                     self.results_dict[index] = {}
                     # image_data = cv2.imread(image_path)
-                    image_data = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8),cv2.IMREAD_COLOR)
+                    image_data = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_COLOR)
                     image_data = cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
                     try:
                         features, original_size, input_size = self.sam_encoder(image_data)
@@ -151,7 +158,7 @@ class SegAnyThread(QThread):
                     self.results_dict[index]['original_size'] = original_size
                     self.results_dict[index]['input_size'] = input_size
 
-                    self.tag.emit(index, 1, '')    # 完成
+                    self.tag.emit(index, 1, '')  # 完成
 
                     torch.cuda.empty_cache()
                 else:
@@ -159,7 +166,7 @@ class SegAnyThread(QThread):
 
 
 class SegAnyVideoThread(QThread):
-    tag = pyqtSignal(int, int, bool, bool, str)    # current, total, finished, is_error, message
+    tag = pyqtSignal(int, int, bool, bool, str)  # current, total, finished, is_error, message
 
     def __init__(self, mainwindow):
         super(SegAnyVideoThread, self).__init__()
@@ -191,7 +198,8 @@ class SegAnyVideoThread(QThread):
 
             current_file = self.mainwindow.files_list[self.start_frame_idx]
             current_file_path = os.path.join(self.mainwindow.image_root, current_file)
-            current_label_path = os.path.join(self.mainwindow.label_root, '.'.join(current_file.split('.')[:-1]) + '.json')
+            current_label_path = os.path.join(self.mainwindow.label_root,
+                                              '.'.join(current_file.split('.')[:-1]) + '.json')
             current_label = Annotation(current_file_path, current_label_path)
 
             current_label.load_annotation()
@@ -231,12 +239,13 @@ class SegAnyVideoThread(QThread):
                     mask = object_dict['mask']
                     self.mainwindow.segany_video.add_new_mask(self.start_frame_idx, group, mask)
 
-                for index, (out_frame_idxs, out_obj_ids, out_mask_logits) in enumerate(self.mainwindow.segany_video.predictor.propagate_in_video(
-                        self.mainwindow.segany_video.inference_state,
-                        start_frame_idx=self.start_frame_idx,
-                        max_frame_num_to_track=self.max_frame_num_to_track,
-                        reverse=False,
-                )):
+                for index, (out_frame_idxs, out_obj_ids, out_mask_logits) in enumerate(
+                        self.mainwindow.segany_video.predictor.propagate_in_video(
+                            self.mainwindow.segany_video.inference_state,
+                            start_frame_idx=self.start_frame_idx,
+                            max_frame_num_to_track=self.max_frame_num_to_track,
+                            reverse=False,
+                        )):
                     if index == 0:  # 忽略当前图片
                         continue
                     file = self.mainwindow.files_list[out_frame_idxs]
@@ -247,7 +256,7 @@ class SegAnyVideoThread(QThread):
                     objects = []
                     for index_mask, out_obj_id in enumerate(out_obj_ids):
 
-                        masks = out_mask_logits[index_mask]   # [1, h, w]
+                        masks = out_mask_logits[index_mask]  # [1, h, w]
                         masks = masks > 0
                         masks = masks.cpu().numpy()
 
@@ -332,7 +341,8 @@ class InitSegAnyThread(QThread):
                 sam_tag = False
             if 'sam2' in self.model_path:
                 try:
-                    self.mainwindow.segany_video = SegAnyVideo(self.model_path, self.mainwindow.cfg['software']['use_bfloat16'])
+                    self.mainwindow.segany_video = SegAnyVideo(self.model_path,
+                                                               self.mainwindow.cfg['software']['use_bfloat16'])
                     sam_video_tag = True
                 except Exception as e:
                     print('Init SAM2 video Error: ', e)
@@ -343,6 +353,7 @@ class InitSegAnyThread(QThread):
 
 class CheckLatestVersionThread(QThread):
     tag = pyqtSignal(bool, str)
+
     def __init__(self, mainwindow):
         super(CheckLatestVersionThread, self).__init__()
         self.mainwindow = mainwindow
@@ -384,11 +395,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.load_finished = False
         self.polygons: list = []
 
-        self.png_palette = None # 图像拥有调色盘，说明是单通道的标注png文件
+        self.png_palette = None  # 图像拥有调色盘，说明是单通道的标注png文件
         self.instance_cmap = imgviz.label_colormap()
         self.map_mode = MAPMode.LABEL
         # 标注目标
         self.current_label: Annotation = None
+
+        self.use_manual_keypoint = False # 自定义标注类型
         self.use_segment_anything = False
         self.use_segment_anything_video = False
         self.gpu_resource_thread = None
@@ -418,7 +431,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             return
 
         if not self.saved:
-            result = QtWidgets.QMessageBox.question(self, 'Warning', 'Proceed without saved?', QtWidgets.QMessageBox.StandardButton.Yes|QtWidgets.QMessageBox.StandardButton.No, QtWidgets.QMessageBox.StandardButton.No)
+            result = QtWidgets.QMessageBox.question(self, 'Warning', 'Proceed without saved?',
+                                                    QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                                                    QtWidgets.QMessageBox.StandardButton.No)
             if result == QtWidgets.QMessageBox.StandardButton.No:
                 if isinstance(self.sender(), QtWidgets.QAction):
                     self.sender().setChecked(False)
@@ -429,6 +444,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             else:
                 return
         # 等待sam线程完成
+        self.actionSegment_anything_point2.setEnabled(False)
         self.actionSegment_anything_point.setEnabled(False)
         self.actionSegment_anything_box.setEnabled(False)
         try:
@@ -447,6 +463,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             QtWidgets.QMessageBox.warning(self, 'Warning',
                                           'The checkpoint of [Segment anything] not existed. If you want use quick annotate, please download from {}'.format(
                                               'https://github.com/facebookresearch/segment-anything#model-checkpoints'))
+            self.use_manual_keypoint = False
             self.use_segment_anything = False
             self.model_manager_dialog.update_ui()
             return
@@ -455,7 +472,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.init_segany_thread.start()
         self.setEnabled(False)
 
-    def init_sam_finish(self, sam_tag:bool, sam_video_tag:bool):
+    def init_sam_finish(self, sam_tag: bool, sam_video_tag: bool):
         print('sam_tag:', sam_tag, 'sam_video_tag: ', sam_video_tag)
         self.setEnabled(True)
         if sam_video_tag:
@@ -487,6 +504,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionVideo_segment_five_times.setEnabled(self.use_segment_anything_video)
 
         if sam_tag:
+            self.use_manual_keypoint = True
             self.use_segment_anything = True
             if self.use_segment_anything:
                 if self.segany.device != 'cpu':
@@ -504,7 +522,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             if self.segany.device == 'cuda':
                 try:
                     tooltip += '\ncuda : {}'.format(torch.version.cuda)
-                except: 
+                except:
                     pass
             self.labelGPUResource.setToolTip(tooltip)
 
@@ -518,26 +536,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             checkpoint_name = os.path.split(self.segany.checkpoint)[-1]
             self.statusbar.showMessage('Use the checkpoint named {}.'.format(checkpoint_name), 3000)
         else:
+            self.use_manual_keypoint = False
             self.use_segment_anything = False
 
         self.model_manager_dialog.update_ui()
 
-    def sam_encoder_finish(self, index:int, state:int, message:str):
+    def sam_encoder_finish(self, index: int, state: int, message: str):
         if state == 1:  # 识别完
             # 如果当前图片刚识别完，需刷新segany状态
             if self.current_index == index:
                 self.SeganyEnabled()
 
         # 图片识别状态刷新
-        if state == 1: color = '#00FF00'
-        elif state == 0: color = '#999999'
-        elif state == 2: color = '#FFFF00'
+        if state == 1:
+            color = '#00FF00'
+        elif state == 0:
+            color = '#999999'
+        elif state == 2:
+            color = '#FFFF00'
         elif state == 3:
             color = '#999999'
             if index == self.current_index:
-                QtWidgets.QMessageBox.warning(self, 'warning','SAM not support the image: {}\nError: {}'.format(self.files_list[index], message))
+                QtWidgets.QMessageBox.warning(self, 'warning',
+                                              'SAM not support the image: {}\nError: {}'.format(self.files_list[index],
+                                                                                                message))
 
-        else: color = '#999999'
+        else:
+            color = '#999999'
 
         if index == self.current_index:
             self.files_dock_widget.label_current_state.setStyleSheet("background-color: {};".format(color))
@@ -564,6 +589,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.actionSegment_anything_point.setEnabled(False)
             self.actionSegment_anything_box.setEnabled(False)
             return
+        if not self.use_manual_keypoint:
+            self.actionSegment_anything_point2.setEnabled(False)
+            return
 
         results = self.seganythread.results_dict.get(self.current_index, {})
         features = results.get('features', None)
@@ -583,10 +611,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.segany.predictor_with_point_prompt._features = features
             self.segany.predictor_with_point_prompt._is_image_set = True
 
+            self.actionSegment_anything_point2.setEnabled(True)
             self.actionSegment_anything_point.setEnabled(True)
             self.actionSegment_anything_box.setEnabled(True)
         else:
             self.segany.predictor_with_point_prompt.reset_image()
+            self.actionSegment_anything_point2.setEnabled(False)
             self.actionSegment_anything_point.setEnabled(False)
             self.actionSegment_anything_box.setEnabled(False)
 
@@ -601,7 +631,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setEnabled(False)
         self.statusbar_change_status(is_message=False)
         self.segany_video_thread.start_frame_idx = self.current_index
-        self.segany_video_thread.max_frame_num_to_track=max_frame_num_to_track
+        self.segany_video_thread.max_frame_num_to_track = max_frame_num_to_track
         self.segany_video_thread.start()
 
     def seg_video_finish(self, current, total, finished, is_error, message):
@@ -710,7 +740,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.trans = QtCore.QTranslator()
 
-    def statusbar_change_status(self, is_message:bool=True):
+    def statusbar_change_status(self, is_message: bool = True):
         self.labelGPUResource.setVisible(is_message)
         self.labelData.setVisible(is_message)
         self.labelCoord.setVisible(is_message)
@@ -771,7 +801,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_saturation.setStatusTip(_translate("MainWindow", "Image saturation."))
         self.image_saturation.setToolTip(_translate("MainWindow", "Image saturation"))
 
-        self.categories_dock_widget.pushButton_group_mode.setStatusTip(_translate("MainWindow", "Group id auto add 1 when add a new polygon."))
+        self.categories_dock_widget.pushButton_group_mode.setStatusTip(
+            _translate("MainWindow", "Group id auto add 1 when add a new polygon."))
         self.modeState.setStatusTip(_translate('MainWindow', 'View mode.'))
 
         # -----------------
@@ -852,7 +883,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # shortcut
         self.load_actions_shortcut(default=False)
 
-    def set_saved_state(self, is_saved:bool):
+    def set_saved_state(self, is_saved: bool):
         if not is_saved:
             if self.cfg['software']['auto_save']:
                 self.save()
@@ -876,18 +907,36 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.seganythread.results_dict.clear()
             try:
                 self.segany_video.inference_state = {}
-            except: pass
+            except:
+                pass
 
         self.files_list.clear()
         self.files_dock_widget.listWidget.clear()
 
         files = []
-        suffixs = tuple(['{}'.format(fmt.data().decode('ascii').lower()) for fmt in QtGui.QImageReader.supportedImageFormats()])
+        suffixs = tuple(
+            ['{}'.format(fmt.data().decode('ascii').lower()) for fmt in QtGui.QImageReader.supportedImageFormats()])
         for f in os.listdir(dir):
             if f.lower().endswith(suffixs):
                 # f = os.path.join(dir, f)
                 files.append(f)
-        files = sorted(files)
+
+        # TODO 20250317 文件名排序
+        # 定义一个函数来提取文件名中的前半部分和数字部分
+        def extract_key(file_name):
+            # 使用正则表达式匹配第一个数值和坐标点部分
+            match = re.match(r'(\d+)_rgb_real_coord_(\d+_\d+)\.jpg', file_name)
+            # match = re.match(r'(\d+)_rgb_real.jpg', file_name)
+            if match:
+                first_number = int(match.group(1))
+                coord_part = match.group(2)
+                return (first_number, coord_part)
+            return file_name, "0"
+            # else:
+            # raise ValueError(f"Filename does not match expected pattern: {filename}")
+
+        files = sorted(files, key=extract_key)
+        print("文件名列表排序完成！")
         self.files_list = files
 
         self.files_dock_widget.update_widget()
@@ -895,6 +944,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.current_index = 0
 
         self.image_root = dir
+        print("选择Image root: {}".format(self.image_root))
         self.actionImages_dir.setStatusTip("Image root: {}".format(self.image_root))
 
         self.label_root = dir
@@ -941,9 +991,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def update_group_display(self):
         self.categories_dock_widget.lineEdit_currentGroup.setText(str(self.current_group))
 
-    def show_image(self, index:int, zoomfit:bool=True):
+    def show_image(self, index: int, zoomfit: bool = True):
         if not self.saved:
-            result = QtWidgets.QMessageBox.question(self, 'Warning', 'Proceed without saved?', QtWidgets.QMessageBox.StandardButton.Yes|QtWidgets.QMessageBox.StandardButton.No, QtWidgets.QMessageBox.StandardButton.No)
+            result = QtWidgets.QMessageBox.question(self, 'Warning', 'Proceed without saved?',
+                                                    QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                                                    QtWidgets.QMessageBox.StandardButton.No)
             if result == QtWidgets.QMessageBox.StandardButton.No:
                 return
 
@@ -1033,7 +1085,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.info_dock_widget.update_widget()
             self.files_dock_widget.set_select(index)
             self.current_index = index
-            self.files_dock_widget.label_current.setText('{}'.format(self.current_index+1))
+            self.files_dock_widget.label_current.setText('{}'.format(self.current_index + 1))
             self.load_finished = True
 
         except Exception as e:
@@ -1076,12 +1128,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if index:
             if not index.isdigit():
                 if index in self.files_list:
-                    index = self.files_list.index(index)+1
+                    index = self.files_list.index(index) + 1
                 else:
                     QtWidgets.QMessageBox.warning(self, 'Warning', 'Don`t exist image named: {}'.format(index))
                     self.files_dock_widget.lineEdit_jump.clear()
                     return
-            index = int(index)-1
+            index = int(index) - 1
             if 0 <= index < len(self.files_list):
                 self.show_image(index)
                 self.files_dock_widget.lineEdit_jump.clear()
@@ -1104,7 +1156,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         object = Object(category=category, group=group, segmentation=segmentation, area=area, layer=layer, bbox=bbox)
         self.current_label.objects.append(object)
 
-    def delete_object(self, index:int):
+    def delete_object(self, index: int):
         if 0 <= index < len(self.current_label.objects):
             del self.current_label.objects[index]
 
@@ -1119,6 +1171,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             polygon.setBrush(polygon.color)
         self.annos_dock_widget.listWidget.setEnabled(False)
         self.annos_dock_widget.checkBox_visible.setEnabled(False)
+        self.actionSegment_anything_point2.setEnabled(False)
         self.actionSegment_anything_point.setEnabled(False)
         self.actionSegment_anything_box.setEnabled(False)
         self.actionVideo_segment.setEnabled(False)
@@ -1148,6 +1201,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             polygon.setBrush(polygon.color)
         self.annos_dock_widget.listWidget.setEnabled(False)
         self.annos_dock_widget.checkBox_visible.setEnabled(False)
+        self.actionSegment_anything_point2.setEnabled(False)
         self.actionSegment_anything_point.setEnabled(False)
         self.actionSegment_anything_box.setEnabled(False)
         self.actionVideo_segment.setEnabled(False)
@@ -1279,8 +1333,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.current_index is not None:
             self.show_image(self.current_index, zoomfit=False)
 
-
         pass
+
     def change_saturation(self, value):  # 调整图像饱和度
         if self.scene.image_data is not None:
             saturation_scale = value / 100.0
@@ -1288,7 +1342,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             hsv_image[:, :, 1] = np.clip(hsv_image[:, :, 1] * saturation_scale, 0, 255)
             image_hsv = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2RGB)
             height, width, channels = self.scene.image_data.shape
-            pixmap = QtGui.QPixmap.fromImage(QtGui.QImage(image_hsv.data, width, height, channels * width, QtGui.QImage.Format_RGB888))
+            pixmap = QtGui.QPixmap.fromImage(
+                QtGui.QImage(image_hsv.data, width, height, channels * width, QtGui.QImage.Format_RGB888))
             self.scene.image_item.setPixmap(pixmap)
         else:
             print('Image data not loaded in AnnotationScene')
@@ -1364,7 +1419,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             try:
                 self.scene.guide_line_x.setVisible(False)
                 self.scene.guide_line_y.setVisible(False)
-            except: pass
+            except:
+                pass
             image = QtGui.QImage(self.scene.sceneRect().size().toSize(), QtGui.QImage.Format_ARGB32)
             painter = QtGui.QPainter(image)
             self.scene.render(painter)
@@ -1374,7 +1430,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             try:
                 self.scene.guide_line_x.setVisible(True)
                 self.scene.guide_line_y.setVisible(True)
-            except: pass
+            except:
+                pass
         elif type == 'window':
             image = QtGui.QImage(self.size(), QtGui.QImage.Format_ARGB32)
             painter = QtGui.QPainter(image)
@@ -1416,6 +1473,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionSetting.triggered.connect(self.setting)
         self.actionExit.triggered.connect(self.exit)
 
+        self.actionSegment_anything_point2.triggered.connect(self.scene.start_manual_keypoint)
         self.actionSegment_anything_point.triggered.connect(self.scene.start_segment_anything)
         self.actionSegment_anything_box.triggered.connect(self.scene.start_segment_anything_box)
         self.actionPolygon.triggered.connect(self.scene.start_draw_polygon)
@@ -1462,6 +1520,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def reset_action(self):
         self.actionPrev_image.setEnabled(False)
         self.actionNext_image.setEnabled(False)
+        self.actionSegment_anything_point2.setEnabled(False)
         self.actionSegment_anything_point.setEnabled(False)
         self.actionSegment_anything_box.setEnabled(False)
         self.actionPolygon.setEnabled(False)
