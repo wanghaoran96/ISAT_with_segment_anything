@@ -21,6 +21,8 @@ label:
   name: fence
 - color: '#204a87'
   name: hat
+- color: '#ff0835'
+  name: keypoint
 shortcut:
   actionAbout:
     default_key: ''
@@ -155,7 +157,8 @@ software:
   auto_save: false
   contour_mode: external
   create_mode_invisible_polygon: true
-  language: en
+  current_converter: coco
+  language: zh
   mask_alpha: 0.6
   show_edge: true
   show_prompt: true
