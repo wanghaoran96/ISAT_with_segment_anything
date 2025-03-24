@@ -46,8 +46,8 @@ class COCO(ISAT):
                 annos_coco = dataset.loadAnns(ann_id)
                 anno_coco = annos_coco[0]
 
-                segmentations = anno_coco.get('segmentation', [])    # 多个polygon
-                area = anno_coco.get('area', None)                   # coco中，area是组面积，isat中是单个polygon面积
+                segmentations = anno_coco.get('segmentation', [])  # 多个polygon
+                area = anno_coco.get('area', None)  # coco中，area是组面积，isat中是单个polygon面积
                 iscrowd = anno_coco.get('iscrowd', None)
                 image_id = anno_coco.get('image_id', None)
                 bbox = anno_coco.get('bbox', [])
@@ -240,7 +240,8 @@ class COCO(ISAT):
         categories_dict = sorted(categories_dict.items(), key=lambda x: x[1])
         coco_anno['categories'] = [{'name': name, 'id': id, 'supercategory': None} for name, id in categories_dict]
 
-        with open(annotation_file, 'w') as f:
+        with open(annotation_file, 'w', encoding="utf-8") as f:
+            print("now is using coco.py")
             try:
                 dump(coco_anno, f)
                 print('Save COCO json finished.')
@@ -248,4 +249,3 @@ class COCO(ISAT):
                 print('Save COCO json error: {}'.format(e))
 
         return True
-
