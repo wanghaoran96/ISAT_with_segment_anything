@@ -10,7 +10,7 @@ from ISAT.configs import STATUSMode, CLICKMode, DRAWMode, CONTOURMode
 class PromptPoint(QtWidgets.QGraphicsPathItem):
     def __init__(self, pos, type=0):
         super(PromptPoint, self).__init__()
-        self.color = QtGui.QColor('#0000FF') if type==0 else QtGui.QColor('#00FF00')
+        self.color = QtGui.QColor('#0000FF') if type == 0 else QtGui.QColor('#00FF00')
         self.color.setAlpha(255)
         self.painterpath = QtGui.QPainterPath()
         self.painterpath.addEllipse(
@@ -34,9 +34,11 @@ class Vertex(QtWidgets.QGraphicsPathItem):
         self.line_width = 0
 
         self.nohover = QtGui.QPainterPath()
-        self.nohover.addEllipse(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.nohover.addEllipse(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
         self.hover = QtGui.QPainterPath()
-        self.hover.addRect(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.hover.addRect(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
 
         self.setPath(self.nohover)
         self.setBrush(self.color)
@@ -66,22 +68,22 @@ class Vertex(QtWidgets.QGraphicsPathItem):
             # 限制顶点移动到图外
             if value.x() < 0:
                 value.setX(0)
-            if value.x() > self.scene().width()-1:
-                value.setX(self.scene().width()-1)
+            if value.x() > self.scene().width() - 1:
+                value.setX(self.scene().width() - 1)
             if value.y() < 0:
                 value.setY(0)
-            if value.y() > self.scene().height()-1:
-                value.setY(self.scene().height()-1)
+            if value.y() > self.scene().height() - 1:
+                value.setY(self.scene().height() - 1)
             index = self.polygon.vertexs.index(self)
             self.polygon.movePoint(index, value)
 
         return super(Vertex, self).itemChange(change, value)
-    
+
     def hoverEnterEvent(self, event: 'QGraphicsSceneHoverEvent'):
         self.scene().hovered_vertex = self
-        if self.scene().mode == STATUSMode.CREATE: # CREATE
+        if self.scene().mode == STATUSMode.CREATE:  # CREATE
             self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.CrossCursor))
-        else: # EDIT, VIEW
+        else:  # EDIT, VIEW
             self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.OpenHandCursor))
             if not self.isSelected():
                 self.setBrush(QtGui.QColor(255, 255, 255, 255))
@@ -108,8 +110,9 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
         self.group = 0
         self.iscrowd = 0
         self.note = ''
+        self.center = []
 
-        self.rxmin, self.rxmax, self.rymin, self.rymax = 0, 0, 0, 0 # 用于绘画完成后，记录多边形的各边界，此处与points对应
+        self.rxmin, self.rxmax, self.rymin, self.rymax = 0, 0, 0, 0  # 用于绘画完成后，记录多边形的各边界，此处与points对应
         self.color = QtGui.QColor('#ff0000')
         self.is_drawing = True
 
@@ -166,7 +169,7 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
     def itemChange(self, change: 'QGraphicsItem.GraphicsItemChange', value: typing.Any):
         if (change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged
                 and not self.is_drawing
-                and self.scene().mode!=STATUSMode.CREATE): # 选中改变
+                and self.scene().mode != STATUSMode.CREATE):  # 选中改变
             if self.isSelected():
                 color = QtGui.QColor('#00A0FF')
                 color.setAlpha(self.hover_alpha)
@@ -177,18 +180,18 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
                 self.setBrush(self.color)
                 if self in self.scene().selected_polygons_list:
                     self.scene().selected_polygons_list.remove(self)
-            self.scene().mainwindow.annos_dock_widget.set_selected(self) # 更新label面板
+            self.scene().mainwindow.annos_dock_widget.set_selected(self)  # 更新label面板
 
-        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange: # ItemPositionHasChanged
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange:  # ItemPositionHasChanged
             bias = value
             l, t, b, r = self.boundingRect().left(), self.boundingRect().top(), self.boundingRect().bottom(), self.boundingRect().right()
             if l + bias.x() < 0: bias.setX(-l)
-            if r + bias.x() > self.scene().width(): bias.setX(self.scene().width()-r)
+            if r + bias.x() > self.scene().width(): bias.setX(self.scene().width() - r)
             if t + bias.y() < 0: bias.setY(-t)
-            if b + bias.y() > self.scene().height(): bias.setY(self.scene().height()-b)
+            if b + bias.y() > self.scene().height(): bias.setY(self.scene().height() - b)
 
             for index, point in enumerate(self.points):
-                self.moveVertex(index, point+bias)
+                self.moveVertex(index, point + bias)
 
             if self.scene().mainwindow.load_finished and not self.is_drawing:
                 self.scene().mainwindow.set_saved_state(False)
@@ -238,7 +241,7 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
             vertex.setPen(QtGui.QPen(vertex_color, self.line_width))
             vertex.setBrush(vertex_color)
 
-    def set_drawed(self, category, group, iscrowd, note, color:QtGui.QColor, layer=None):
+    def set_drawed(self, category, group, iscrowd, note, color: QtGui.QColor, layer=None, center=[]):
         self.is_drawing = False
         self.category = category
         if isinstance(group, str):
@@ -246,6 +249,7 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
         self.group = group
         self.iscrowd = iscrowd
         self.note = note
+        self.center = center
 
         self.color = color
         if not self.scene().mainwindow.cfg['software']['show_edge']:
@@ -276,7 +280,8 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
             point = QtCore.QPointF(x, y)
             self.addPoint(point)
         color = self.scene().mainwindow.category_color_dict.get(object.category, '#000000')
-        self.set_drawed(object.category, object.group, object.iscrowd, object.note, QtGui.QColor(color), object.layer)  # ...
+        self.set_drawed(object.category, object.group, object.iscrowd, object.note, QtGui.QColor(color),
+                        object.layer)  # ...
 
     def to_object(self):
         if self.is_drawing:
@@ -291,7 +296,8 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
         ymax = ymin + self.boundingRect().height()
 
         object = Object(self.category, group=self.group, segmentation=segmentation,
-                        area=self.calculate_area(), layer=self.zValue(), bbox=(xmin, ymin, xmax, ymax), iscrowd=self.iscrowd, note=self.note)
+                        area=self.calculate_area(), layer=self.zValue(), bbox=(xmin, ymin, xmax, ymax),
+                        iscrowd=self.iscrowd, note=self.note, center=self.center)
         return object
 
 
@@ -306,9 +312,11 @@ class LineVertex(QtWidgets.QGraphicsPathItem):
         self.line_width = 0
 
         self.nohover = QtGui.QPainterPath()
-        self.nohover.addEllipse(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.nohover.addEllipse(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
         self.hover = QtGui.QPainterPath()
-        self.hover.addRect(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.hover.addRect(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
 
         self.setPath(self.nohover)
         self.setBrush(self.color)
@@ -332,16 +340,17 @@ class LineVertex(QtWidgets.QGraphicsPathItem):
             # 限制顶点移动到图外
             if value.x() < 0:
                 value.setX(0)
-            if value.x() > self.scene().width()-1:
-                value.setX(self.scene().width()-1)
+            if value.x() > self.scene().width() - 1:
+                value.setX(self.scene().width() - 1)
             if value.y() < 0:
                 value.setY(0)
-            if value.y() > self.scene().height()-1:
-                value.setY(self.scene().height()-1)
+            if value.y() > self.scene().height() - 1:
+                value.setY(self.scene().height() - 1)
             index = self.polygon.vertexs.index(self)
             self.polygon.movePoint(index, value)
 
         return super(LineVertex, self).itemChange(change, value)
+
 
 class Line(QtWidgets.QGraphicsPathItem):
     def __init__(self):
@@ -410,9 +419,11 @@ class RectVertex(QtWidgets.QGraphicsPathItem):
         self.line_width = 0
 
         self.nohover = QtGui.QPainterPath()
-        self.nohover.addEllipse(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.nohover.addEllipse(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
         self.hover = QtGui.QPainterPath()
-        self.hover.addRect(QtCore.QRectF(-self.nohover_size//2, -self.nohover_size//2, self.nohover_size, self.nohover_size))
+        self.hover.addRect(
+            QtCore.QRectF(-self.nohover_size // 2, -self.nohover_size // 2, self.nohover_size, self.nohover_size))
 
         self.setPath(self.nohover)
         self.setBrush(self.color)
@@ -436,12 +447,12 @@ class RectVertex(QtWidgets.QGraphicsPathItem):
             # 限制顶点移动到图外
             if value.x() < 0:
                 value.setX(0)
-            if value.x() > self.scene().width()-1:
-                value.setX(self.scene().width()-1)
+            if value.x() > self.scene().width() - 1:
+                value.setX(self.scene().width() - 1)
             if value.y() < 0:
                 value.setY(0)
-            if value.y() > self.scene().height()-1:
-                value.setY(self.scene().height()-1)
+            if value.y() > self.scene().height() - 1:
+                value.setY(self.scene().height() - 1)
             index = self.rect.vertexs.index(self)
             self.rect.movePoint(index, value)
 
