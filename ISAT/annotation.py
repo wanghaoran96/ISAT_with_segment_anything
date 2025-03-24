@@ -2,14 +2,16 @@
 # @Author  : LG
 
 import os
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 from json import load, dump
-from typing import List
+from typing import List, Union
 
 
 class Object:
-    def __init__(self, category:str, group:int, segmentation, area, layer, bbox, iscrowd=0, note=''):
+    def __init__(self, category: str, group: int, segmentation, area, layer, bbox, iscrowd=0, note='', center=None):
+        if center is None:
+            center = []
         self.category = category
         self.group = group
         self.segmentation = segmentation
@@ -18,6 +20,7 @@ class Object:
         self.bbox = bbox
         self.iscrowd = iscrowd
         self.note = note
+        self.center = center
 
 
 class Annotation:
@@ -40,11 +43,11 @@ class Annotation:
             print('Warning: Except image has 2 or 3 ndim, but get {}.'.format(image.ndim))
         del image
 
-        self.objects:List[Object,...] = []
+        self.objects: List[Object, ...] = []
 
     def load_annotation(self):
         if os.path.exists(self.label_path):
-            with open(self.label_path, 'r') as f:
+            with open(self.label_path, 'r', encoding="utf-8") as f:
                 dataset = load(f)
                 info = dataset.get('info', {})
                 description = info.get('description', '')
@@ -72,7 +75,8 @@ class Annotation:
                         area = obj.get('area', 0)
                         layer = obj.get('layer', 2)
                         bbox = obj.get('bbox', [])
-                        obj = Object(category, group, segmentation, area, layer, bbox, iscrowd, note)
+                        center = obj.get('center', [])
+                        obj = Object(category, group, segmentation, area, layer, bbox, iscrowd, note, center)
                         self.objects.append(obj)
                 else:
                     # 不再支持直接打开labelme标注文件（在菜单栏-tool-convert中提供了isat<->labelme相互转换工具）
@@ -100,7 +104,17 @@ class Annotation:
             object['bbox'] = obj.bbox
             object['iscrowd'] = obj.iscrowd
             object['note'] = obj.note
+            object["center"] = obj.center
+            # TODO 20250317根据box和segment创建一个mask,mask太大，不易存储，放在后处理，实际使用位置
+            # # 创建一个空白的二值掩码
+            # mask = Image.new('L', (dataset['info']['width'], dataset['info']['height']), 0)
+            # draw = ImageDraw.Draw(mask)
+            # # 绘制多边形
+            # draw.polygon(object['segmentation'], outline=1, fill=1)
+            # object['mask'] = [list((int(v) for v in mk)) for mk in np.array(mask)]
+
             dataset['objects'].append(object)
-        with open(self.label_path, 'w') as f:
-            dump(dataset, f, indent=4)
+        with open(self.label_path, 'w', encoding="utf-8") as f:
+            dump(dataset, f, indent=4, ensure_ascii=False)
+            print("now is using annotation.py")
         return True
