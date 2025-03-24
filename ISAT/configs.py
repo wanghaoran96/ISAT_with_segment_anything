@@ -34,11 +34,13 @@ class STATUSMode(Enum):
     CREATE = 1
     EDIT = 2
     REPAINT = 3
+    KEYPOINT = 4
 
 class DRAWMode(Enum):
     POLYGON = 0
     SEGMENTANYTHING = 1
     SEGMENTANYTHING_BOX = 2
+    MANUALKEYPOINT = 3 # 自定义kp
 
 class CLICKMode(Enum):
     POSITIVE = 0
