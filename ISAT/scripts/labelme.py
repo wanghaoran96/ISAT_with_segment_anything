@@ -20,7 +20,7 @@ class LABELME(ISAT):
 
         for file in pbar:
             name_without_suffix = self.remove_file_suffix(file)
-            pbar.set_description('Load labelme json {}'.format(name_without_suffix+'.json'))
+            pbar.set_description('Load labelme json {}'.format(name_without_suffix + '.json'))
             anno = self._load_one_labelme_json(os.path.join(json_root, file))
             self.annos[name_without_suffix] = anno
 
@@ -42,13 +42,13 @@ class LABELME(ISAT):
             json_path = os.path.join(json_root, name_without_suffix + '.json')
             try:
                 self._save_one_labelme_json(anno, json_path)
-                pbar.set_description('Save labelme to {}'.format(name_without_suffix+'.json'))
+                pbar.set_description('Save labelme to {}'.format(name_without_suffix + '.json'))
 
             except Exception as e:
                 raise '{} {}'.format(name_without_suffix, e)
         return True
 
-    def _save_one_labelme_json(self, anno:ISAT.ANNO, json_path):
+    def _save_one_labelme_json(self, anno: ISAT.ANNO, json_path):
         labelme_anno = {}
         labelme_anno['version'] = "5.2.0.post4 | ISAT to LabelMe"
         labelme_anno['imagePath'] = anno.info.name
@@ -81,8 +81,9 @@ class LABELME(ISAT):
 
             labelme_anno['shapes'].append(shape)
 
-        with open(json_path, 'w') as f:
-            dump(labelme_anno, f, indent=4)
+        with open(json_path, 'w', encoding="utf-8") as f:
+            dump(labelme_anno, f, indent=4, ensure_ascii=False)
+            print("now is using labelme.py")
         return True
 
     def _load_one_labelme_json(self, json_path):
