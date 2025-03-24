@@ -29,6 +29,7 @@ class ISAT:
             ['iscrowd']: A boolean value indicating if the object is part of a crowd
             ['note']: An optional field for any additional notes related to the object
     """
+
     class ANNO:
         class INFO:
             description = ''
@@ -38,6 +39,7 @@ class ISAT:
             height = None
             depth = None
             note = ''
+
         class OBJ:
             category = ''
             group = None
@@ -47,11 +49,12 @@ class ISAT:
             bbox = None
             iscrowd = None
             note = ''
-        info:INFO
-        objs:Tuple[OBJ] = ()
 
-    annos:Dict[str, ANNO] = {}  # name, ANNO (the name without the suffix)
-    cates:Tuple[str] = ()
+        info: INFO
+        objs: Tuple[OBJ] = ()
+
+    annos: Dict[str, ANNO] = {}  # name, ANNO (the name without the suffix)
+    cates: Tuple[str] = ()
 
     def read_from_ISAT(self, json_root):
         self.annos.clear()
@@ -151,7 +154,7 @@ class ISAT:
             anno.objs = tuple(objs)
         return anno
 
-    def _save_one_isat_json(self, anno:ANNO, save_path):
+    def _save_one_isat_json(self, anno: ANNO, save_path):
         anno.info.description = 'ISAT'
         dataset = {}
         dataset['info'] = {}
@@ -175,6 +178,7 @@ class ISAT:
             object['note'] = obj.note
             dataset['objects'].append(object)
 
-        with open(save_path, 'w') as f:
-            dump(dataset, f, indent=4)
+        with open(save_path, 'w', encoding="utf-8") as f:
+            dump(dataset, f, indent=4, ensure_ascii=False)
+            print("now is using isat.py")
         return True
