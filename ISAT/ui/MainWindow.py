@@ -187,6 +187,7 @@ class Ui_MainWindow(object):
         icon12.addPixmap(QtGui.QPixmap(":/icon/icons/ISAT13.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionAbout.setIcon(icon12)
         self.actionAbout.setObjectName("actionAbout")
+
         self.actionSegment_anything_point = QtWidgets.QAction(MainWindow)
         icon13 = QtGui.QIcon()
         icon13.addPixmap(QtGui.QPixmap(":/icon/icons/M_Favicon.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -194,6 +195,16 @@ class Ui_MainWindow(object):
         self.actionSegment_anything_point.setObjectName("actionSegment_anything_point")
         self.actionDelete = QtWidgets.QAction(MainWindow)
         self.actionDelete.setEnabled(False)
+
+        # # TODO 复制一个用来做点位
+        self.actionSegment_anything_point2 = QtWidgets.QAction(MainWindow)
+        icon13_2 = QtGui.QIcon()
+        icon13_2.addPixmap(QtGui.QPixmap(":/icon/icons/M_Favicon.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionSegment_anything_point2.setIcon(icon13_2)
+        self.actionSegment_anything_point2.setObjectName("action_manual_keypoint")
+        self.actionDelete = QtWidgets.QAction(MainWindow)
+        self.actionDelete.setEnabled(False)
+
         icon14 = QtGui.QIcon()
         icon14.addPixmap(QtGui.QPixmap(":/icon/icons/删除_delete.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionDelete.setIcon(icon14)
@@ -370,6 +381,7 @@ class Ui_MainWindow(object):
         self.menuTools.addAction(self.actionVideo_to_frames)
         self.menuTools.addAction(self.actionAuto_segment_with_bounding_box)
         self.menuTools.addAction(self.actionAnno_validator)
+        self.menuEdit.addAction(self.actionSegment_anything_point2)
         self.menuEdit.addAction(self.actionSegment_anything_point)
         self.menuEdit.addAction(self.actionSegment_anything_box)
         self.menuEdit.addAction(self.actionPolygon)
@@ -406,6 +418,7 @@ class Ui_MainWindow(object):
         self.toolBar.addAction(self.actionPrev_image)
         self.toolBar.addAction(self.actionNext_image)
         self.toolBar.addSeparator()
+        self.toolBar.addAction(self.actionSegment_anything_point2)
         self.toolBar.addAction(self.actionSegment_anything_point)
         self.toolBar.addAction(self.actionSegment_anything_box)
         self.toolBar.addAction(self.actionPolygon)
@@ -491,10 +504,17 @@ class Ui_MainWindow(object):
         self.actionNext_image.setShortcut(_translate("MainWindow", "D"))
         self.actionShortcut.setText(_translate("MainWindow", "Shortcut"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
+        # TODO 配套
+        self.actionSegment_anything_point2.setText(_translate("MainWindow", "Manual keypoint"))
+        self.actionSegment_anything_point2.setToolTip(_translate("MainWindow", "Manual keypoint"))
+        self.actionSegment_anything_point2.setStatusTip(_translate("MainWindow", "Quick annotate using Manual."))
+        self.actionSegment_anything_point2.setShortcut(_translate("MainWindow", "M"))
+
         self.actionSegment_anything_point.setText(_translate("MainWindow", "Segment anything point"))
         self.actionSegment_anything_point.setToolTip(_translate("MainWindow", "Segment anything point"))
         self.actionSegment_anything_point.setStatusTip(_translate("MainWindow", "Quick annotate using Segment anything."))
         self.actionSegment_anything_point.setShortcut(_translate("MainWindow", "Q"))
+
         self.actionDelete.setText(_translate("MainWindow", "Delete"))
         self.actionDelete.setToolTip(_translate("MainWindow", "Delete polygon"))
         self.actionDelete.setStatusTip(_translate("MainWindow", "Delete polygon."))
