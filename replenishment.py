@@ -59,7 +59,11 @@ def display_mask(mask):
     plt.axis('off')  # 不显示坐标轴
     plt.show()
 
-
+"""
+文件排序：
+    按照一般文件名排序，xxx_coord_100.jpg会排在xxx_coord_1.jpg前面，为了方便顺序查看，
+    在 ISAT/widgets/mainwindow.py 938行会引入一个排序key函数，有需要的自己定义或者注释掉，避免影响不同类型文件名的排序导致程序无法运行
+"""
 if __name__ == '__main__':
     # 示例用法
     image_size = (400, 500)  # 图像尺寸
