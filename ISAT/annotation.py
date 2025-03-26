@@ -114,6 +114,13 @@ class Annotation:
             # object['mask'] = [list((int(v) for v in mk)) for mk in np.array(mask)]
 
             dataset['objects'].append(object)
+
+        # 后处理，计算center
+        for obj in dataset["objects"]:
+            points = obj["segmentation"]
+            center = [int(sum(point[0] for point in points) / len(points)),
+                      int(sum(point[1] for point in points) / len(points))]
+            obj["center"] = center
         with open(self.label_path, 'w', encoding="utf-8") as f:
             dump(dataset, f, indent=4, ensure_ascii=False)
             print("now is using annotation.py")
