@@ -343,9 +343,12 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                 masks = self.masks
                 masks = masks.astype('uint8') * 255
                 h, w = masks.shape[-2:]
-                masks = masks.reshape(h, w)
+                masks = masks.reshape(h, w)  # TODO 这里保存为objects是单个保存的，改为多个mask循环保存
 
-                if self.contour_mode == CONTOURMode.SAVE_ALL:
+                if self.draw_mode == DRAWMode.MANUALKEYPOINT:  # TODO 当为点标注时，应该是保存所有的边界
+                    # TODO 当为点标注时，应该是保存所有的边界
+                    contours, hierarchy = cv2.findContours(masks, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
+                elif self.contour_mode == CONTOURMode.SAVE_ALL:
                     # 当保留所有轮廓时，检测所有轮廓，并建立二层等级关系
                     contours, hierarchy = cv2.findContours(masks, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
                 else:
@@ -374,7 +377,8 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                         x = max(0.1, x)
                         y = max(0.1, y)
                         self.current_graph.addPoint(QtCore.QPointF(x, y))
-                    center = [int(sum(point[0][0] for point in contour) / len(contour)), int(sum(point[0][1] for point in contour) / len(contour))]
+                    center = [int(sum(point[0][0] for point in contour) / len(contour)),
+                              int(sum(point[0][1] for point in contour) / len(contour))]
                     if self.contour_mode == CONTOURMode.SAVE_ALL and hierarchy[0][index][3] != -1:
                         # 保存所有轮廓，且当前轮廓为子轮廓，则自轮廓类别设置为背景
                         category = '__background__'
@@ -399,6 +403,7 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                     for vertex in self.current_graph.vertexs:
                         vertex.setZValue(len(self.mainwindow.polygons))
                     self.current_graph = None
+                # self.current_graph = None
                 if self.mainwindow.group_select_mode == 'auto':
                     self.mainwindow.current_group += 1
                     self.mainwindow.categories_dock_widget.lineEdit_currentGroup.setText(
@@ -1022,8 +1027,9 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                 # 随鼠标位置实时更新多边形
                 self.current_graph.movePoint(len(self.current_graph.points) - 1, pos)
             if self.draw_mode == DRAWMode.MANUALKEYPOINT:
-                if len(self.click_points)>0:
-                    self.update_mask_manual_key_point()
+                pass  # TODO 改为多点后不需要每次都更新，只有在点击时更新
+                # if len(self.click_points)>0:
+                #     self.update_mask_manual_key_point()
 
         if self.mode == STATUSMode.REPAINT:
             self.current_line.movePoint(len(self.current_line.points) - 1, pos)
@@ -1128,21 +1134,22 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
         if self.mask_item is not None:
             self.mask_item.setPixmap(mask_pixmap)
 
-    def create_circular_mask(self, center, image_shape=(480, 640), radius=10):
+    def create_circular_mask(self, centers, image_shape=(480, 640), radius=10):
         """
-        创建一个以center坐标为圆心、radius为半径的圆形掩膜。
+        创建一个以centers坐标为圆心、radius为半径的圆形掩膜。
 
         参数:
-        - center: 圆心坐标 (x, y) 的元组。
+        - centers: 圆心坐标 [(x1, y1), (x2, y2), ...] 的列表。
         - image_shape: 目标掩膜的大小，默认是(480, 640)。
         - radius: 圆形区域的半径，默认是10。
 
         返回:
         - 形状为 (1, 480, 640) 的布尔类型 ndarray，圆形区域内为 True，其余部分为 False。
         """
-        center = (int(center[0]), int(center[1]))
         mask = np.zeros(image_shape, dtype=np.uint8)
-        cv2.circle(mask, center, radius, color=1, thickness=-1)
+        for center in centers:
+            center = (int(center[0]), int(center[1]))
+            cv2.circle(mask, center, radius, color=1, thickness=-1)
         bool_mask = mask.astype(bool)
         return bool_mask[np.newaxis, :, :]
 
@@ -1155,10 +1162,10 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
             return
 
         if len(self.click_points) > 0 and len(self.click_points_mode) > 0:
-            masks = self.create_circular_mask(self.click_points[0], self.image_data.shape[:2])
-            self.click_points = []
-            self.click_points_mode = []
-            self.masks = masks
+            masks = self.create_circular_mask(self.click_points, self.image_data.shape[:2])
+            # self.click_points = []  # TODO 这里为什么直接清空，正常的seg是什么时候清空的？1、finish_draw（对应对号图标键？） 2、cancel_draw 两个函数
+            # self.click_points_mode = []  # TODO 点标注模式下需要连续多点标注，查看在两个函数使用得时候，应该不清空
+            self.masks = masks  # TODO 一个mask多个点位
             # color = np.array([255, 0, 0])  # 红色
             color = np.array([255, 0, 255])  # 红色
             h, w = masks.shape[-2:]
