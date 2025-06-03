@@ -107,6 +107,7 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
         self.points = []
         self.vertexs = []
         self.category = ''
+        self.action = ''
         self.group = 0
         self.iscrowd = 0
         self.note = ''
@@ -241,9 +242,33 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
             vertex.setPen(QtGui.QPen(vertex_color, self.line_width))
             vertex.setBrush(vertex_color)
 
-    def set_drawed(self, category, group, iscrowd, note, color: QtGui.QColor, layer=None, center=[]):
+    def set_drawed(self, category, group, iscrowd, note, color: QtGui.QColor, layer=None, center=[], action=None):
         self.is_drawing = False
         self.category = category
+        self.action = action
+        if isinstance(group, str):
+            group = 0 if group == '' else int(group)
+        self.group = group
+        self.iscrowd = iscrowd
+        self.note = note
+        self.center = center
+
+        self.color = color
+        if not self.scene().mainwindow.cfg['software']['show_edge']:
+            color.setAlpha(0)
+        self.setPen(QtGui.QPen(color, self.line_width))
+        self.color.setAlpha(self.nohover_alpha)
+        self.setBrush(self.color)
+        if layer is not None:
+            self.setZValue(layer)
+            for vertex in self.vertexs:
+                vertex.setZValue(layer)
+        for vertex in self.vertexs:
+            vertex.setColor(color)
+
+    def set_drawed_action(self, action, group, iscrowd, note, color: QtGui.QColor, layer=None, center=[]):
+        self.is_drawing = False
+        self.action = action
         if isinstance(group, str):
             group = 0 if group == '' else int(group)
         self.group = group
@@ -297,7 +322,7 @@ class Polygon(QtWidgets.QGraphicsPolygonItem):
 
         object = Object(self.category, group=self.group, segmentation=segmentation,
                         area=self.calculate_area(), layer=self.zValue(), bbox=(xmin, ymin, xmax, ymax),
-                        iscrowd=self.iscrowd, note=self.note, center=self.center)
+                        iscrowd=self.iscrowd, note=self.note, center=self.center,action=self.action)
         return object
 
 
