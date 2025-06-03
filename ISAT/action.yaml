@@ -1,0 +1,7 @@
+action:
+- color: '#000000'
+  name: __background__
+- color: '#0800ff'
+  name: folding_sleeves
+- color: '#55c3ff'
+  name: fold_up_and_down
