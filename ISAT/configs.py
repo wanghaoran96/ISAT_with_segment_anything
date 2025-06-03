@@ -5,6 +5,7 @@ import os
 ISAT_ROOT = os.path.split(os.path.abspath(__file__))[0]
 SOFTWARE_CONFIG_FILE = os.path.join(ISAT_ROOT, 'software.yaml')
 CONFIG_FILE = os.path.join(ISAT_ROOT, 'isat.yaml')
+ACTION_CONFIG_FILE = os.path.join(ISAT_ROOT, 'action.yaml')
 CHECKPOINT_PATH = os.path.join(ISAT_ROOT, 'checkpoints')
 SHORTCUT_FILE = os.path.join(ISAT_ROOT, 'shortcut.yaml')
 
@@ -30,9 +31,9 @@ def save_config(cfg, file):
     return True
 
 class STATUSMode(Enum):
-    VIEW = 0
-    CREATE = 1
-    EDIT = 2
+    VIEW = 0 #  查看
+    CREATE = 1 #
+    EDIT = 2 # 编辑
     REPAINT = 3
     KEYPOINT = 4
 
