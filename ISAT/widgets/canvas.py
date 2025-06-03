@@ -332,6 +332,7 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
             return
 
         category = self.mainwindow.current_category
+        action = self.mainwindow.current_action
         group = self.mainwindow.current_group
         is_crowd = False
         note = ''
@@ -382,9 +383,11 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                     if self.contour_mode == CONTOURMode.SAVE_ALL and hierarchy[0][index][3] != -1:
                         # 保存所有轮廓，且当前轮廓为子轮廓，则自轮廓类别设置为背景
                         category = '__background__'
+                        action = '__background__'
                         group = 0
                     else:
                         category = self.mainwindow.current_category
+                        action = self.mainwindow.current_action
                         group = self.mainwindow.current_group
 
                     self.current_graph.set_drawed(category,
@@ -393,7 +396,7 @@ class AnnotationScene(QtWidgets.QGraphicsScene):
                                                   note,
                                                   QtGui.QColor(self.mainwindow.category_color_dict[category]),
                                                   self.top_layer,
-                                                  center=center)
+                                                  center=center, action=action)
 
                     # 添加新polygon
                     self.mainwindow.polygons.append(self.current_graph)
