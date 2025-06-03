@@ -9,9 +9,11 @@ from typing import List, Union
 
 
 class Object:
-    def __init__(self, category: str, group: int, segmentation, area, layer, bbox, iscrowd=0, note='', center=None):
+    def __init__(self, category: str, group: int, segmentation, area, layer, bbox, iscrowd=0, note='', center=None,
+                 action=None):
         if center is None:
             center = []
+        self.action = action if action is not None else "unknow"  # TODO 右侧新添列表，提供场景选择
         self.category = category
         self.group = group
         self.segmentation = segmentation
@@ -67,6 +69,7 @@ class Annotation:
                     self.note = info.get('note', '')
                     for obj in objects:
                         category = obj.get('category', 'unknow')
+                        action = obj.get('action', 'unknow')
                         group = obj.get('group', 0)
                         if group is None: group = 0
                         segmentation = obj.get('segmentation', [])
@@ -76,7 +79,7 @@ class Annotation:
                         layer = obj.get('layer', 2)
                         bbox = obj.get('bbox', [])
                         center = obj.get('center', [])
-                        obj = Object(category, group, segmentation, area, layer, bbox, iscrowd, note, center)
+                        obj = Object(category, group, segmentation, area, layer, bbox, iscrowd, note, center, action)
                         self.objects.append(obj)
                 else:
                     # 不再支持直接打开labelme标注文件（在菜单栏-tool-convert中提供了isat<->labelme相互转换工具）
@@ -97,6 +100,7 @@ class Annotation:
         for obj in self.objects:
             object = {}
             object['category'] = obj.category
+            object['action'] = obj.action
             object['group'] = obj.group
             object['segmentation'] = obj.segmentation
             object['area'] = obj.area
