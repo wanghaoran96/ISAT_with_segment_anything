@@ -4,9 +4,9 @@ import re
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from ISAT.ui.MainWindow import Ui_MainWindow
-from ISAT.widgets.category_setting_dialog import CategorySettingDialog
-from ISAT.widgets.category_edit_dialog import CategoryEditDialog
-from ISAT.widgets.category_dock_widget import CategoriesDockWidget
+from ISAT.widgets.category_setting_dialog import CategorySettingDialog, ActionSettingDialog
+from ISAT.widgets.category_edit_dialog import CategoryEditDialog, ActionEditDialog
+from ISAT.widgets.category_dock_widget import CategoriesDockWidget, ActionsDockWidget
 from ISAT.widgets.annos_dock_widget import AnnosDockWidget
 from ISAT.widgets.files_dock_widget import FilesDockWidget
 from ISAT.widgets.info_dock_widget import InfoDockWidget
@@ -20,7 +20,8 @@ from ISAT.widgets.auto_segment_dialog import AutoSegmentDialog
 from ISAT.widgets.model_manager_dialog import ModelManagerDialog
 from ISAT.widgets.annos_validator_dialog import AnnosValidatorDialog
 from ISAT.widgets.canvas import AnnotationScene, AnnotationView
-from ISAT.configs import STATUSMode, MAPMode, load_config, save_config, CONFIG_FILE, SOFTWARE_CONFIG_FILE, \
+from ISAT.configs import STATUSMode, MAPMode, load_config, save_config, CONFIG_FILE, ACTION_CONFIG_FILE, \
+    SOFTWARE_CONFIG_FILE, \
     CHECKPOINT_PATH, ISAT_ROOT, SHORTCUT_FILE
 from ISAT.annotation import Object, Annotation
 from ISAT.widgets.polygon import Polygon, PromptPoint
@@ -386,6 +387,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.current_group = 1
 
         self.config_file = CONFIG_FILE
+        self.action_config_file = ACTION_CONFIG_FILE
         self.software_config_file = SOFTWARE_CONFIG_FILE
         self.shortcut_config_file = SHORTCUT_FILE
 
@@ -401,7 +403,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # 标注目标
         self.current_label: Annotation = None
 
-        self.use_manual_keypoint = False # 自定义标注类型
+        self.use_manual_keypoint = False  # 自定义标注类型
         self.use_segment_anything = False
         self.use_segment_anything_video = False
         self.gpu_resource_thread = None
@@ -648,9 +650,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def init_ui(self):
         self.category_setting_dialog = CategorySettingDialog(parent=self, mainwindow=self)
+        self.action_setting_dialog = ActionSettingDialog(parent=self, mainwindow=self)
 
-        self.categories_dock_widget = CategoriesDockWidget(mainwindow=self)
+        self.categories_dock_widget = CategoriesDockWidget(mainwindow=self)  # 标注类别组件
         self.categories_dock.setWidget(self.categories_dock_widget)
+        # TODO 下一步添加一个列表组件在这个下面，然后放动作选择
+        self.actions_dock_widget = ActionsDockWidget(mainwindow=self)  # 标注类别组件
+        self.actions_dock.setWidget(self.actions_dock_widget)
 
         self.annos_dock_widget = AnnosDockWidget(mainwindow=self)
         self.annos_dock.setWidget(self.annos_dock_widget)
@@ -665,6 +671,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.scene = AnnotationScene(mainwindow=self)
         self.category_edit_widget = CategoryEditDialog(self, self, self.scene)
+        self.action_edit_widget = ActionEditDialog(self, self, self.scene)
 
         self.Converter_dialog = ConverterDialog(self, mainwindow=self)
         self.video2frames_dialog = Video2FramesDialog(self, self)
@@ -785,8 +792,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.annos_dock_widget.retranslateUi(self.annos_dock_widget)
         self.files_dock_widget.retranslateUi(self.files_dock_widget)
         self.category_edit_widget.retranslateUi(self.category_edit_widget)
+        self.action_edit_widget.retranslateUi(self.action_edit_widget)
         self.categories_dock_widget.retranslateUi(self.categories_dock_widget)
+        self.actions_dock_widget.retranslateUi(self.actions_dock_widget)
         self.category_setting_dialog.retranslateUi(self.category_setting_dialog)
+        self.action_setting_dialog.retranslateUi(self.action_setting_dialog)
         self.model_manager_dialog.retranslateUi(self.model_manager_dialog)
         self.about_dialog.retranslateUi(self.about_dialog)
         self.shortcut_dialog.retranslateUi(self.shortcut_dialog)
@@ -802,6 +812,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_saturation.setToolTip(_translate("MainWindow", "Image saturation"))
 
         self.categories_dock_widget.pushButton_group_mode.setStatusTip(
+            _translate("MainWindow", "Group id auto add 1 when add a new polygon."))
+        self.actions_dock_widget.pushButton_group_mode.setStatusTip(
             _translate("MainWindow", "Group id auto add 1 when add a new polygon."))
         self.modeState.setStatusTip(_translate('MainWindow', 'View mode.'))
 
@@ -864,6 +876,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # 类别
         self.cfg.update(load_config(self.config_file))
+        self.cfg.update(load_config(self.action_config_file))
         label_dict_list = self.cfg.get('label', [])
         if len(label_dict_list) < 1 or label_dict_list[0].get('name', 'unknow') != '__background__':
             label_dict_list.insert(0, {'color': '#000000', 'name': '__background__'})
@@ -875,7 +888,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             d[category] = color
         self.category_color_dict = d
 
-        self.categories_dock_widget.update_widget()
+        # TODO ACTION
+        action_label_dict_list = self.cfg.get('action', [])
+        if len(action_label_dict_list) < 1 or action_label_dict_list[0].get('name', 'unknow') != '__background__':
+            action_label_dict_list.insert(0, {'color': '#000000', 'name': '__background__'})
+
+        e = {}
+        for label_dict in action_label_dict_list:
+            category = label_dict.get('name', 'unknow')
+            color = label_dict.get('color', '#000000')
+            e[category] = color
+        self.action_color_dict = e
+
+        self.categories_dock_widget.update_widget()  # TODO category
+        self.actions_dock_widget.update_widget()  # TODO action
 
         if self.current_index is not None:
             self.show_image(self.current_index)
@@ -935,7 +961,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             # else:
             # raise ValueError(f"Filename does not match expected pattern: {filename}")
 
-        files = sorted(files, key=extract_key)
+        # files = sorted(files, key=extract_key)
         print("文件名列表排序完成！")
         self.files_list = files
 
@@ -956,6 +982,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             # load setting yaml
             self.config_file = os.path.join(dir, 'isat.yaml')
             self.reload_cfg()
+        if os.path.exists(os.path.join(dir, 'action.yaml')):
+            # load setting yaml
+            self.action_config_file = os.path.join(dir, 'action.yaml')
+            self.reload_cfg()
 
         self.show_image(self.current_index)
 
@@ -969,6 +999,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # load setting yaml
         if os.path.exists(os.path.join(dir, 'isat.yaml')):
             self.config_file = os.path.join(dir, 'isat.yaml')
+            self.reload_cfg()
+
+        # load setting yaml
+        if os.path.exists(os.path.join(dir, 'action.yaml')):
+            self.action_config_file = os.path.join(dir, 'action.yaml')
             self.reload_cfg()
         # 刷新图片
         if self.current_index is not None:
@@ -986,10 +1021,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.current_label.save_annotation()
         # 保存标注文件的同时保存一份isat配置文件
         self.save_cfg(os.path.join(self.label_root, 'isat.yaml'))
+        self.save_cfg_action(os.path.join(self.label_root, 'action.yaml'))
         self.set_saved_state(True)
 
     def update_group_display(self):
         self.categories_dock_widget.lineEdit_currentGroup.setText(str(self.current_group))
+        self.actions_dock_widget.lineEdit_currentGroup.setText(str(self.current_group))
 
     def show_image(self, index: int, zoomfit: bool = True):
         if not self.saved:
@@ -1150,6 +1187,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.category_setting_dialog.load_cfg()
         self.category_setting_dialog.show()
 
+    # TODO action配置更新
+    def action_setting(self):
+        self.action_setting_dialog.load_cfg()
+        self.action_setting_dialog.show()
+
     def add_new_object(self, category, group, segmentation, area, layer, bbox):
         if self.current_label is None:
             return
@@ -1167,6 +1209,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             for vertex in polygon.vertexs:
                 vertex.setVisible(False)
             polygon.change_color(QtGui.QColor(self.category_color_dict.get(polygon.category, '#000000')))
+            polygon.change_color(QtGui.QColor(self.action_color_dict.get(polygon.action, '#000000')))
             polygon.color.setAlpha(255)
             polygon.setBrush(polygon.color)
         self.annos_dock_widget.listWidget.setEnabled(False)
@@ -1222,6 +1265,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 # vertex.setEnabled(True)
                 vertex.setVisible(polygon.isVisible())
             polygon.change_color(QtGui.QColor(self.category_color_dict.get(polygon.category, '#000000')))
+            polygon.change_color(QtGui.QColor(self.action_color_dict.get(polygon.action, '#000000')))
             polygon.color.setAlpha(polygon.nohover_alpha)
             polygon.setBrush(polygon.color)
         self.annos_dock_widget.listWidget.setEnabled(True)
@@ -1448,12 +1492,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         cfg = {'label': self.cfg.get('label', [])}
         save_config(cfg, config_file)
 
+    def save_cfg_action(self, config_file):
+        # 只保存类别配置
+        cfg = {'action': self.cfg.get('action', [])}
+        save_config(cfg, config_file)
+
     def save_software_cfg(self):
         save_config(self.cfg, self.software_config_file)
 
     def exit(self):
         # 保存类别配置
         self.save_cfg(self.config_file)
+        self.save_cfg_action(self.action_config_file)
         # 保存软件配置
         self.save_software_cfg()
         self.close()
